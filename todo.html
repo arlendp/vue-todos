@@ -1,0 +1,150 @@
+</html>
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Vue.js · TodoMVC</title>
+    <link rel="stylesheet" type="text/css" href="todo.css">
+</head>
+
+<body>
+    <div id="todos">
+        <h1>todos</h1>
+        <section>
+            <header>
+                <input type="checkbox" class="toggleAll" v-on:click='toggleAll'>
+                <input type="text" class="note" placeholder="what needs to be done?" v-on:keyup.enter="addItem" v-model="newItem">
+            </header>
+            <section class="main-content">
+                <ul class="todo-lists" v-if="todos.length">
+                    <li v-for="todo in filterTodos" class="todo-item" v-bind:class="{editing: todo == editingItem}">
+                        <input type="checkbox" class="toggle" v-model="todo.completed">
+                        <label v-bind:class="{inactive: todo.completed}" v-on:dblclick="edit(todo)">{{todo.value}}</label>
+                        <button class="delete-item" v-on:click="deleteItem(todo)"></button>
+                        <div class="edit-wrapper">
+                            <input type="text" class="edit" v-model="todo.value" v-on:keyup.enter="doneEdit" v-on:blur="doneEdit" v-on:keyup.esc='cancelTodo(todo)' autofocus>
+                        </div>
+                    </li>
+                </ul>
+            </section>
+            <footer class="clearfix">
+                <p>{{activeItems}} left</p>
+                <button v-on:click="clearCompleted" v-show="hasCompleted">Clear completed</button>
+                <ul class="status-box">
+                    <li v-on:click="proxy('all')"><a v-bind:class="{selected: filter == 'all'}">All</a></li>
+                    <li v-on:click="proxy('active')"><a v-bind:class="{selected: filter == 'active'}">Active</a></li>
+                    <li v-on:click="proxy('completed')"><a v-bind:class="{selected: filter == 'completed'}">Completed</a></li>
+                </ul>
+            </footer>
+        </section>
+    </div>
+</body>
+<script type="text/javascript" src="vue.js"></script>
+<script>
+var uid = 0;
+
+var filterUtil = {
+    all: function(todos) {
+        return todos;
+    },
+    active: function(todos) {
+        return todos.filter(function(v) {
+            return !v.completed;
+        });
+    },
+    completed: function(todos) {
+        return todos.filter(function(v) {
+            return v.completed;
+        })
+    }
+};
+
+var Store = {
+    fetch: function() {
+        return JSON.parse(localStorage.getItem('todos'));
+    },
+    set: function(todos) {
+        localStorage.setItem('todos', JSON.stringify(todos));
+    }
+}
+
+var store;
+
+var app = new Vue({
+    el: '#todos',
+    data: {
+        todos: (store = Store.fetch()) == null ? [] : store,
+        newItem: '',
+        filter: 'all',
+        editingItem: null
+    },
+    computed: {
+        activeItems: function() {
+            var activeItems = this.todos.filter(function(v) {
+                return !v.completed;
+            }).length;
+            return activeItems > 1 ? (activeItems + ' items') : (activeItems + ' item');
+        },
+        filterTodos: function() {
+            return filterUtil[this.filter](this.todos);
+        },
+        hasCompleted: function() {
+            return filterUtil.completed(this.todos).length;
+        }
+    },
+
+    methods: {
+        // notice this refers to vue object not input object
+        addItem: function() {
+            (this.newItem.trim() != '') && this.todos.push({
+                id: uid++,
+                value: this.newItem,
+                completed: false
+            });
+            this.newItem = '';
+        },
+        deleteItem: function(todo) {
+            this.todos.splice(this.todos.indexOf(todo), 1);
+        },
+        proxy: function(status) {
+            this.filter = status;
+        },
+        clearCompleted: function() {
+            this.todos = filterUtil.active(this.todos);
+        },
+        toggleAll: function() {
+            this.todos.map(function(v) {
+                v.completed = !v.completed;
+            })
+        },
+        isSelected: function(status) {
+            return status == this.filter;
+        },
+        edit: function(todo) {
+            // record the editing todo's value not itself, for the array is passing reference.
+            this.record = todo.value;
+            this.editingItem = todo;
+        },
+        doneEdit: function() {
+            this.editingItem = null;
+        },
+        cancelTodo: function(todo) {
+            this.editingItem = null;
+            todo.value = this.record;
+        }
+    },
+    watch: {
+        todos: {
+            handler: function() {
+                Store.set(this.todos);
+            },
+            deep: true
+        }
+    }
+
+})
+</script>
+
+</html>
